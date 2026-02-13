@@ -2,55 +2,44 @@
 
 import { ReactNode } from "react"
 import { Lock } from "lucide-react"
-import { useUserPlan } from "@/hooks/useUserPlan"
+import { useUserPlan, hasFeatureAccess, type FeatureKey } from "@/hooks/useUserPlan"
 
 type Props = {
+  feature: FeatureKey
   children: ReactNode
-  feature?: string
-  requiredPlan?: string
+  title?: string
+  description?: string
 }
 
 export default function FeatureGate({
-  children,
   feature,
-  requiredPlan,
+  children,
+  title = "Recurso bloqueado",
+  description = "Faça upgrade do seu plano para acessar este recurso."
 }: Props) {
   const { plan, loading } = useUserPlan()
 
-  if (loading) {
-    return <>{children}</>
-  }
+  if (loading) return null
 
-  // Regras simples (para não quebrar build):
-  // - Se não exigir plano/feature, libera
-  if (!feature && !requiredPlan) return <>{children}</>
+  const allowed = hasFeatureAccess(plan, feature)
 
-  // Se exigir "pro/premium", libera apenas se o plano bater
-  const normalizedPlan = String(plan || "").toLowerCase()
-  const normalizedRequired = String(requiredPlan || "").toLowerCase()
-
-  const hasAccess =
-    !normalizedRequired ||
-    normalizedPlan === normalizedRequired ||
-    (normalizedRequired === "pro" && (normalizedPlan === "pro" || normalizedPlan === "premium")) ||
-    (normalizedRequired === "premium" && normalizedPlan === "premium")
-
-  if (hasAccess) return <>{children}</>
+  if (allowed) return <>{children}</>
 
   return (
-    <div className="p-6 rounded-2xl border bg-white dark:bg-zinc-900 dark:border-zinc-800">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="p-2 rounded-xl border dark:border-zinc-800">
+    <div className="rounded-2xl border p-6 bg-white dark:bg-gray-900">
+      <div className="flex items-start gap-3">
+        <div className="mt-1">
           <Lock className="w-5 h-5" />
         </div>
-        <h3 className="text-lg font-semibold">Recurso bloqueado</h3>
+        <div className="space-y-1">
+          <p className="font-semibold">{title}</p>
+          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Recurso: <span className="font-mono">{feature}</span> • Plano atual:{" "}
+            <span className="font-mono">{plan}</span>
+          </p>
+        </div>
       </div>
-
-      <p className="text-sm text-zinc-600 dark:text-zinc-300">
-        {requiredPlan
-          ? `Este recurso exige o plano ${requiredPlan}.`
-          : "Este recurso exige um plano superior."}
-      </p>
     </div>
   )
 }
