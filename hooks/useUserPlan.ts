@@ -1,76 +1,73 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { createClient, type User } from "@supabase/supabase-js"
+import { supabase } from "@/lib/supabase"
 
 export type PlanType = "free" | "pro" | "premium"
-export type FeatureKey = string
 
-type HookReturn = {
+export type PlanState = {
   plan: PlanType
   loading: boolean
+  isLoading: boolean
   refreshPlan: () => Promise<void>
 }
 
-function safeCreateSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !key) return null
-  return createClient(url, key)
-}
+const DEFAULT_PLAN: PlanType = "free"
 
-/**
- * Regras simples (ajuste depois como quiser):
- * - free: só o básico
- * - pro: libera tudo exceto recursos "premium"
- * - premium: libera tudo
- */
-export function hasFeatureAccess(plan: PlanType, feature: FeatureKey) {
+export function hasFeatureAccess(plan: PlanType, featureKey: string) {
+  // Ajuste as regras como quiser. Deixei simples:
+  if (!featureKey) return true
   if (plan === "premium") return true
-  if (plan === "pro") return !feature.toLowerCase().includes("premium")
-  return false
+  if (plan === "pro") return featureKey !== "premium-only"
+  return featureKey === "free"
 }
 
-export function useUserPlan(): HookReturn {
-  const supabase = useMemo(() => safeCreateSupabase(), [])
-  const [plan, setPlan] = useState<PlanType>("free")
-  const [loading, setLoading] = useState<boolean>(true)
+export function useUserPlan(): PlanState {
+  const [plan, setPlan] = useState<PlanType>(DEFAULT_PLAN)
+  const [loading, setLoading] = useState(true)
 
-  const load = useCallback(async () => {
+  const refreshPlan = useCallback(async () => {
+    setLoading(true)
     try {
-      setLoading(true)
+      const { data, error } = await supabase.auth.getUser()
+      if (error) throw error
 
-      // Sem supabase configurado -> não quebra build/preview, assume free
-      if (!supabase) {
-        setPlan("free")
-        return
-      }
-
-      const { data } = await supabase.auth.getUser()
-      const user: User | null = data?.user ?? null
-
-      // Sem usuário logado -> free
+      const user = data?.user
       if (!user) {
-        setPlan("free")
+        setPlan(DEFAULT_PLAN)
         return
       }
 
-      // Aqui você pode trocar para buscar o plano no seu DB.
-      // Por enquanto: tenta ler do metadata do usuário (opcional)
-      const metaPlan = (user.user_metadata?.plan as PlanType | undefined) ?? "free"
+      // Se você tiver tabela/perfil no Supabase, troque aqui.
+      // Por enquanto, tenta ler do user_metadata:
+      const metaPlan = (user.user_metadata?.plan as PlanType | undefined) ?? DEFAULT_PLAN
       setPlan(metaPlan)
+    } catch {
+      setPlan(DEFAULT_PLAN)
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
-    load()
-  }, [load])
+    refreshPlan()
 
-  return {
-    plan,
-    loading,
-    refreshPlan: load
-  }
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange(() => {
+      refreshPlan()
+    })
+
+    return () => subscription.unsubscribe()
+  }, [refreshPlan])
+
+  return useMemo(
+    () => ({
+      plan,
+      loading,
+      isLoading: loading,
+      refreshPlan
+    }),
+    [plan, loading, refreshPlan]
+  )
 }
