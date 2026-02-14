@@ -1,19 +1,29 @@
+"use client"
+
 import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { ChevronRight, MoreHorizontal } from "lucide-react"
+import Link from "next/link"
+import { ChevronRight } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-function Breadcrumb({ ...props }: React.ComponentProps<"nav">) {
-  return <nav aria-label="breadcrumb" data-slot="breadcrumb" {...props} />
+export function Breadcrumb({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
+  return (
+    <nav
+      aria-label="breadcrumb"
+      className={cn("w-full", className)}
+      {...props}
+    />
+  )
 }
 
-function BreadcrumbList({ className, ...props }: React.ComponentProps<"ol">) {
+export function BreadcrumbList({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLOListElement>) {
   return (
     <ol
-      data-slot="breadcrumb-list"
       className={cn(
-        "text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm break-words sm:gap-2.5",
+        "flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground",
         className
       )}
       {...props}
@@ -21,89 +31,83 @@ function BreadcrumbList({ className, ...props }: React.ComponentProps<"ol">) {
   )
 }
 
-function BreadcrumbItem({ className, ...props }: React.ComponentProps<"li">) {
-  return (
-    <li
-      data-slot="breadcrumb-item"
-      className={cn("inline-flex items-center gap-1.5", className)}
-      {...props}
-    />
-  )
-}
-
-function BreadcrumbLink({
-  asChild,
+export function BreadcrumbItem({
   className,
   ...props
-}: React.ComponentProps<"a"> & {
-  asChild?: boolean
-}) {
-  const Comp = asChild ? Slot : "a"
-
+}: React.HTMLAttributes<HTMLLIElement>) {
   return (
-    <Comp
-      data-slot="breadcrumb-link"
-      className={cn("hover:text-foreground transition-colors", className)}
-      {...props}
-    />
+    <li className={cn("inline-flex items-center gap-1.5", className)} {...props} />
   )
 }
 
-function BreadcrumbPage({ className, ...props }: React.ComponentProps<"span">) {
+/**
+ * ✅ Versão “segura” sem Slot/asChild para NÃO dar conflito de ref no build.
+ * Use assim:
+ * <BreadcrumbLink href="/algum-lugar">Texto</BreadcrumbLink>
+ */
+export function BreadcrumbLink({
+  className,
+  href,
+  children,
+  ...props
+}: Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
+  href: string
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn("hover:text-foreground transition-colors", className)}
+      {...props}
+    >
+      {children}
+    </Link>
+  )
+}
+
+export function BreadcrumbPage({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLSpanElement>) {
   return (
     <span
-      data-slot="breadcrumb-page"
       role="link"
       aria-disabled="true"
       aria-current="page"
-      className={cn("text-foreground font-normal", className)}
+      className={cn("font-normal text-foreground", className)}
       {...props}
     />
   )
 }
 
-function BreadcrumbSeparator({
-  children,
+export function BreadcrumbSeparator({
   className,
   ...props
-}: React.ComponentProps<"li">) {
+}: React.HTMLAttributes<HTMLLIElement>) {
   return (
     <li
-      data-slot="breadcrumb-separator"
       role="presentation"
       aria-hidden="true"
-      className={cn("[&>svg]:size-3.5", className)}
+      className={cn("[&>svg]:h-3.5 [&>svg]:w-3.5", className)}
       {...props}
     >
-      {children ?? <ChevronRight />}
+      <ChevronRight />
     </li>
   )
 }
 
-function BreadcrumbEllipsis({
+export function BreadcrumbEllipsis({
   className,
   ...props
-}: React.ComponentProps<"span">) {
+}: React.HTMLAttributes<HTMLSpanElement>) {
   return (
     <span
-      data-slot="breadcrumb-ellipsis"
       role="presentation"
       aria-hidden="true"
-      className={cn("flex size-9 items-center justify-center", className)}
+      className={cn("flex h-9 w-9 items-center justify-center", className)}
       {...props}
     >
-      <MoreHorizontal className="size-4" />
-      <span className="sr-only">More</span>
+      <span className="text-lg leading-none">…</span>
+      <span className="sr-only">Mais</span>
     </span>
   )
-}
-
-export {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-  BreadcrumbEllipsis,
 }
